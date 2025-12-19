@@ -72,3 +72,19 @@ ON files(container_id);
 
 CREATE INDEX IF NOT EXISTS idx_files_last_watched
 ON files(last_watched_at DESC);
+
+CREATE TABLE IF NOT EXISTS vault (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  original_name TEXT,
+  path TEXT,
+  url TEXT,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS cast (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  file_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE
+);
