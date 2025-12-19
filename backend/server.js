@@ -13,6 +13,8 @@ import streamRoutes from './routes/stream.js';
 import historyRoutes from './routes/history.js';
 import settingsRoutes from './routes/settings.js';
 import authRoutes from './routes/auth.js';
+import vaultRoutes from './routes/vault.js';
+import castRoutes from './routes/cast.js';
 
 const app = Fastify({ logger: true });
 
@@ -29,6 +31,8 @@ await app.register(streamRoutes);
 await app.register(historyRoutes);
 await app.register(settingsRoutes);
 await app.register(authRoutes);
+await app.register(vaultRoutes);
+await app.register(castRoutes);
 
 app.get('/health', () => ({ status: 'ok' }));
 
@@ -61,6 +65,11 @@ async function scanLocalFiles(dbConn, logger) {
 
 // run initial scan
 (async () => {
+	// Ensure uploads directory exists
+	if (!fs.existsSync(config.UPLOADS_PATH)) {
+		fs.mkdirSync(config.UPLOADS_PATH, { recursive: true });
+	}
+
 	const res = await scanLocalFiles(app.db, app.log);
 	app.log.info('Initial local file scan complete', res);
 })();
