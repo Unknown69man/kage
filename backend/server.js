@@ -15,6 +15,7 @@ import settingsRoutes from './routes/settings.js';
 import authRoutes from './routes/auth.js';
 import vaultRoutes from './routes/vault.js';
 import castRoutes from './routes/cast.js';
+import duplicatesRoutes from './routes/duplicates.js';
 
 const app = Fastify({ logger: true });
 
@@ -33,6 +34,7 @@ await app.register(settingsRoutes);
 await app.register(authRoutes);
 await app.register(vaultRoutes);
 await app.register(castRoutes);
+await app.register(duplicatesRoutes);
 
 app.get('/health', () => ({ status: 'ok' }));
 

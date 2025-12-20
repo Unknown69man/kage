@@ -1,11 +1,12 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { MediaItem } from "@/lib/mockData";
-import { Play, Download, Trash2, File, Clock, HardDrive, Hash, ChevronRight, Tag, Folder, X, Settings, Edit2, RotateCcw, FolderOpen, Users, Film, Image as ImageIcon, Upload } from "lucide-react";
+import { Play, Download, Trash2, File, Clock, HardDrive, Hash, ChevronRight, Tag, Folder, X, Settings, Edit2, RotateCcw, FolderOpen, Users, Film, Image as ImageIcon, Upload, RefreshCw, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 import {
   Popover,
   PopoverContent,
@@ -31,6 +32,7 @@ export function DetailModal({ item, isOpen, onClose }: DetailModalProps) {
   const [watchProgress, setWatchProgress] = useState(0);
   const [isFilesOpen, setIsFilesOpen] = useState(false);
   const [cardBgStyle, setCardBgStyle] = useState<React.CSSProperties>({});
+  const { toast } = useToast();
 
   useEffect(() => {
     const settings = getSettings();
@@ -89,6 +91,38 @@ export function DetailModal({ item, isOpen, onClose }: DetailModalProps) {
         saveWatchProgress(item.id, item.title, watchProgress + 50, item.duration || "00:00", item.thumbnail);
         setWatchProgress(watchProgress + 50);
       }
+    }
+  };
+
+  const handleRefreshMetadata = async (useAuth: boolean) => {
+    try {
+      const response = await fetch('/api/preview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: item.sourceUrl, // Assuming item has sourceUrl, if not we need to fetch it or this might fail
+          container_id: item.id,
+          useAuth: useAuth
+        })
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Metadata Refreshed",
+          description: useAuth ? "Refreshed using authenticated session." : "Refreshed using public access.",
+        });
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to refresh");
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Refresh Failed",
+        description: error.message,
+      });
     }
   };
 
@@ -385,6 +419,27 @@ export function DetailModal({ item, isOpen, onClose }: DetailModalProps) {
                   </div>
                 </PopoverContent>
               </Popover>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleRefreshMetadata(false)}
+                  className="flex-1 gap-1.5 text-xs h-8"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Refresh (Public)
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleRefreshMetadata(true)}
+                  className="flex-1 gap-1.5 text-xs h-8 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 hover:text-amber-400 border-amber-500/30"
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  Refresh (Auth)
+                </Button>
+              </div>
             </div>
 
             {/* Soft divider */}

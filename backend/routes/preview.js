@@ -1,9 +1,17 @@
 import { resolveTeraBoxPreview } from '../resolvers/terabox-preview.js';
 import { normalizeAndGroupFiles } from '../normalizers/index.js';
 
+function cookiesToHeader(cookies) {
+  if (!Array.isArray(cookies)) return "";
+  return cookies
+    .filter(c => c.domain.includes("1024tera") || c.domain.includes("terabox"))
+    .map(c => `${c.name}=${c.value}`)
+    .join("; ");
+}
+
 export default async function previewRoutes(app) {
   app.post('/preview', async (req, reply) => {
-    const { url, container_id } = req.body;
+    const { url, container_id, useAuth } = req.body;
     if (!url || !container_id) {
       return reply.code(400).send({ error: 'url and container_id are required' });
     }
@@ -12,7 +20,20 @@ export default async function previewRoutes(app) {
     app.db.prepare("UPDATE containers SET status = 'previewing', updated_at = ? WHERE id = ?").run(now, container_id);
 
     try {
-      const data = await resolveTeraBoxPreview(url);
+      let cookie = "";
+      if (useAuth) {
+        // Fetch credentials from DB
+        const authRow = app.db.prepare("SELECT value FROM settings WHERE key = 'terabox_auth'").get();
+        if (authRow && authRow.value) {
+            const auth = JSON.parse(authRow.value);
+            cookie = cookiesToHeader(auth.cookies);
+            app.log.info("Using authenticated cookies for preview");
+        } else {
+            app.log.warn("Auth requested but no credentials found in settings");
+        }
+      }
+
+      const data = await resolveTeraBoxPreview(url, cookie);
       const groups = normalizeAndGroupFiles(data.files);
 
       if (groups.length === 1 && !groups[0].is_virtual) {

@@ -1,24 +1,71 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Link, Download, Folder, Plus, AlertCircle } from "lucide-react";
+import { Link, Download, Folder, Plus, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AddNew() {
   const [tab, setTab] = useState<"url" | "local">("url");
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Videos");
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
-  const handleAddUrl = () => {
-    if (url && title) {
-      console.log("Adding from URL:", { url, title, category });
+  const handleAddUrl = async () => {
+    if (!url || !title) return;
+
+    setLoading(true);
+    try {
+      // 1. Create Container
+      const res = await fetch('/api/containers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'terabox', // Assuming 'terabox' as default for URL inputs based on context
+          source: url,
+          title: title
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to create media container');
+      }
+
+      const container = await res.json();
+
+      // 2. Trigger Resolve/Preview
+      // We start the resolution process immediately
+      const resolveRes = await fetch(`/api/resolve/${container.id}`, {
+        method: 'POST'
+      });
+
+      if (!resolveRes.ok) {
+        console.warn('Resolution trigger failed, but container created');
+      }
+
+      toast({
+        title: "Media Added",
+        description: "Your media has been added to the library and is processing.",
+      });
+
+      // Clear form
       setUrl("");
       setTitle("");
+    } catch (error: any) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to add media.",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -73,6 +120,7 @@ export default function AddNew() {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   className="bg-secondary/50 border-border/50 focus:border-cyan-500/50"
+                  disabled={loading}
                 />
                 <p className="text-xs text-muted-foreground">Supports direct video/image links and streaming URLs</p>
               </div>
@@ -85,6 +133,7 @@ export default function AddNew() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="bg-secondary/50 border-border/50 focus:border-cyan-500/50"
+                  disabled={loading}
                 />
               </div>
 
@@ -95,6 +144,7 @@ export default function AddNew() {
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full px-3 py-2 bg-secondary/50 border border-border/50 rounded-md text-foreground focus:border-cyan-500/50 focus:ring-cyan-500/20 transition-all"
+                  disabled={loading}
                 >
                   <option>Videos</option>
                   <option>Images</option>
@@ -115,15 +165,24 @@ export default function AddNew() {
                 <Button 
                   variant="outline"
                   onClick={() => { setUrl(""); setTitle(""); }}
+                  disabled={loading}
                 >
                   Clear
                 </Button>
                 <Button 
                   className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
                   onClick={handleAddUrl}
-                  disabled={!url || !title}
+                  disabled={!url || !title || loading}
                 >
-                  <Plus className="w-4 h-4 mr-2" /> Add to Library
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Adding...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 mr-2" /> Add to Library
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
